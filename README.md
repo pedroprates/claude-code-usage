@@ -15,6 +15,8 @@
   <em>screenshot placeholder — menu-bar label (5h % + weekly health dot) and the dropdown popover</em>
 </p>
 
+![Claude Code Usage](imgs/ccusage.png)
+
 [Quick Start](#quick-start) · [Features](#features) · [How it works](#how-it-works) · [Configuration](#configuration) · [Roadmap](#roadmap) · [Contributing](#contributing)
 
 </div>
