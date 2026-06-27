@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Claude Code statusline command.
+#
+# Reads the JSON payload Claude Code sends on stdin, persists rate_limits to
+# ~/.claude/cc-usage-tracker/state.json (for the CC Usage menu bar app), then
+# hands stdin to the ccstatusline node renderer for terminal display.
+#
+# Guard: only write state.json when the payload actually carries rate_limits.
+# Multiple Claude Code sessions share this one file; a payload without
+# rate_limits (idle / pre-first-response / API plan) would otherwise clobber
+# the active session's real value, making the menu bar widget flip between the
+# real percentage and a missing/– value.
+set -euo pipefail
+
+INPUT=$(cat)
+
+STATE_DIR="${HOME}/.claude/cc-usage-tracker"
+mkdir -p "$STATE_DIR"
+STATE_FILE="$STATE_DIR/state.json"
+
+FIVE_PCT=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null || true)
+FIVE_RST=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.rate_limits.five_hour.resets_at       // empty' 2>/dev/null || true)
+WEEK_PCT=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null || true)
+WEEK_RST=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.rate_limits.seven_day.resets_at       // empty' 2>/dev/null || true)
+MODEL=$(echo "$INPUT"    | /opt/homebrew/bin/jq -r '.model.display_name // empty'           2>/dev/null || true)
+SESSION=$(echo "$INPUT"  | /opt/homebrew/bin/jq -r '.session_id // empty'                    2>/dev/null || true)
+
+# Only persist when this payload actually carries rate_limits; otherwise leave
+# the last known-good state.json untouched.
+if [ -n "$FIVE_PCT" ] || [ -n "$WEEK_PCT" ]; then
+  TMP="$STATE_FILE.tmp"
+  /opt/homebrew/bin/jq -n \
+    --arg now "$(date +%s)" \
+    --arg f5p "$FIVE_PCT" --arg f5r "$FIVE_RST" \
+    --arg wp  "$WEEK_PCT" --arg wr  "$WEEK_RST" \
+    --arg m "$MODEL" --arg s "$SESSION" \
+    '{
+      updated_at: ($now|tonumber),
+      model: $m,
+      session_id: $s,
+      five_hour: { used_percentage: ($f5p|tonumber?) // null,
+                   resets_at:       ($f5r|tonumber?) // null },
+      seven_day: { used_percentage: ($wp |tonumber?) // null,
+                   resets_at:       ($wr |tonumber?) // null }
+    }' > "$TMP" 2>/dev/null && mv "$TMP" "$STATE_FILE" || rm -f "$TMP"
+fi
+
+echo "$INPUT" | /usr/local/lib/node_modules/ccstatusline/dist/ccstatusline.js

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC Usage Tracker — Plan & Drafts</title>
+<style>
+  :root {
+    --bg: #1d1d1f;
+    --bg-elev: #2c2c2e;
+    --bg-elev-2: #3a3a3c;
+    --glass: rgba(40, 40, 42, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text: #f5f5f7;
+    --text-dim: #a1a1a6;
+    --text-faint: #6e6e73;
+    --accent: #0a84ff;
+    --green: #30d158;
+    --yellow: #ffd60a;
+    --orange: #ff9f0a;
+    --red: #ff453a;
+    --purple: #bf5af2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 0;
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 32px 120px; }
+
+  /* Hero */
+  header.hero {
+    padding: 80px 32px 56px;
+    border-bottom: 1px solid var(--glass-border);
+    background:
+      radial-gradient(1200px 400px at 50% -100px, rgba(10,132,255,0.18), transparent 70%),
+      radial-gradient(800px 300px at 80% 0, rgba(191,90,242,0.10), transparent 70%);
+  }
+  .hero-inner { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .hero p.lead {
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 720px;
+  }
+  .pills { margin-top: 22px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: var(--bg-elev);
+    border: 1px solid var(--glass-border);
+    color: var(--text-dim);
+  }
+  .pill.accent { color: var(--accent); border-color: rgba(10,132,255,0.3); background: rgba(10,132,255,0.1); }
+
+  /* Section */
+  section { padding: 64px 0; border-bottom: 1px solid var(--glass-border); }
+  section:last-child { border-bottom: none; }
+  h2 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  h2 .num {
+    color: var(--text-faint);
+    font-size: 14px;
+    font-weight: 500;
+    margin-right: 12px;
+    vertical-align: 4px;
+  }
+  .section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 15px; }
+
+  /* Menu bar mockup */
+  .menubar {
+    height: 28px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 14px;
+    margin-bottom: 36px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    overflow-x: auto;
+  }
+  .mb-item {
+    font-size: 13px;
+    color: #e6e6e9;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .mb-item.dim { color: #c7c7cc; font-weight: 400; }
+  .mb-item .apple { font-size: 15px; }
+  .mb-spacer { flex: 1; }
+  .mb-status { display: flex; align-items: center; gap: 6px; }
+  .mb-pct { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mb-pct.warn { color: var(--yellow); }
+  .mb-pct.danger { color: var(--red); }
+  .mb-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .mb-dot.g { color: var(--green); background: var(--green); }
+  .mb-dot.y { color: var(--yellow); background: var(--yellow); }
+  .mb-dot.r { color: var(--red); background: var(--red); }
+  .mb-icon {
+    width: 16px; height: 16px;
+    background: linear-gradient(135deg, #d97757, #c4593a);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: white; font-weight: 700;
+  }
+  .mb-meta { color: var(--text-faint); font-size: 11px; }
+
+  /* States grid */
+  .states-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .state-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .state-card .label {
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .state-card .mbbar {
+    height: 24px;
+    background: rgba(0,0,0,0.45);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* Dropdown panel */
+  .panel-stage {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.02), transparent),
+      var(--bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-x: auto;
+    position: relative;
+  }
+  .panel-stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(10,132,255,0.06), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(191,90,242,0.05), transparent 40%);
+    pointer-events: none;
+  }
+  .panel {
+    width: 340px;
+    background: var(--glass);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 0.5px rgba(255,255,255,0.04);
+    position: relative;
+    z-index: 1;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 12px; margin-bottom: 14px;
+    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  }
+  .panel-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .panel-sub { font-size: 11px; color: var(--text-faint); }
+  .panel-row { margin-bottom: 16px; }
+  .panel-row:last-child { margin-bottom: 0; }
+  .row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+  .row-label { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
+  .row-label .tag {
+    font-size: 9px; padding: 2px 5px; border-radius: 4px;
+    background: rgba(255,255,255,0.08); color: var(--text-dim);
+    font-weight: 600; letter-spacing: 0.04em;
+  }
+  .row-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .row-value .unit { color: var(--text-faint); font-weight: 400; font-size: 11px; margin-left: 3px; }
+  .progress {
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text-faint);
+    margin-top: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mini graph */
+  .mini-graph {
+    height: 44px;
+    margin-top: 8px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 2px 0;
+  }
+  .mini-graph .bar {
+    flex: 1;
+    background: rgba(255,255,255,0.15);
+    border-radius: 1.5px;
+    min-height: 2px;
+  }
+  .mini-graph .bar.active { background: var(--accent); }
+  .mini-graph .bar.over { background: var(--red); }
+  .graph-axis {
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--text-faint);
+    margin-top: 4px;
+  }
+
+  /* Divider */
+  .divider {
+    height: 0.5px;
+    background: rgba(255,255,255,0.08);
+    margin: 14px 0;
+  }
+
+  /* OpenRouter card */
+  .or-card {
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .or-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .or-brand { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .or-brand .logo { width: 14px; height: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 3px; }
+  .or-balance { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .or-balance .unit { font-size: 12px; color: var(--text-faint); font-weight: 500; margin-left: 2px; }
+  .or-meta { font-size: 10px; color: var(--text-faint); }
+  .or-spark {
+    display: flex; align-items: flex-end; gap: 2px;
+    height: 18px; margin-top: 8px;
+  }
+  .or-spark .b { flex: 1; background: rgba(99,102,241,0.4); border-radius: 1px; min-height: 1px; }
+
+  /* Footer of panel */
+  .panel-footer {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 0.5px solid rgba(255,255,255,0.08);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--text-faint);
+  }
+  .panel-footer .refresh { color: var(--accent); cursor: pointer; }
+
+  /* Architecture */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 720px) { .arch-grid { grid-template-columns: 1fr; } }
+  .arch-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .arch-card h3 {
+    font-size: 15px; font-weight: 600; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .arch-card .badge {
+    font-size: 10px; padding: 3px 7px; border-radius: 5px;
+    background: rgba(10,132,255,0.15); color: var(--accent);
+    font-weight: 600; letter-spacing: 0.04em;
+  }
+  .arch-card ul { list-style: none; }
+  .arch-card li {
+    font-size: 13px; color: var(--text-dim);
+    padding: 7px 0; padding-left: 18px;
+    position: relative;
+    border-bottom: 0.5px solid rgba(255,255,255,0.04);
+  }
+  .arch-card li:last-child { border-bottom: none; }
+  .arch-card li::before {
+    content: "›"; position: absolute; left: 0; color: var(--accent);
+  }
+  .arch-card li .file { color: var(--text); font-family: "SF Mono", monospace; font-size: 12px; }
+
+  /* File tree */
+  .tree {
+    background: var(--bg-elev);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 22px;
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .tree .dir { color: var(--accent); }
+  .tree .file { color: var(--text); }
+  .tree .cmt { color: var(--text-faint); }
+
+  /* Phases */
+  .phase {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 18px;
+    padding: 18px 0;
+    border-bottom: 0.5px solid rgba(255,255,255,0.05);
+  }
+  .phase:last-child { border-bottom: none; }
+  .phase-num {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(10,132,255,0.12); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .phase h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .phase p { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+  .phase .tasks { display: flex; flex-direction: column; gap: 4px; }
+  .phase .task {
+    font-size: 12px; color: var(--text-dim);
+    padding-left: 16px; position: relative;
+  }
+  .phase .task::before {
+    content: "○"; position: absolute; left: 0; color: var(--text-faint);
+  }
+  .phase .task.done::before { content: "●"; color: var(--green); }
+  .phase .task .file { color: var(--text); font-family: "SF Mono", monospace; font-size: 11px; }
+
+  /* Q box */
+  .qbox {
+    background: rgba(191,90,242,0.06);
+    border: 1px solid rgba(191,90,242,0.2);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-top: 18px;
+    font-size: 13px; color: var(--text-dim);
+  }
+  .qbox b { color: var(--purple); }
+
+  /* Legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; font-size: 12px; color: var(--text-dim); }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+
+  hr.soft { border: none; height: 0.5px; background: rgba(255,255,255,0.08); margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Plan & Visual Drafts</div>
+    <h1>CC Usage Tracker<br>A native macOS menu bar app</h1>
+    <p class="lead">A lightweight SwiftUI menu-bar utility that tracks Claude Code's 5-hour and weekly usage limits at a glance, and surfaces your OpenRouter balance on click. Sits in the menu bar, reads local <span class="mono">~/.claude</span> logs, and respects the macOS Liquid Glass aesthetic.</p>
+    <div class="pills">
+      <span class="pill accent">Swift / SwiftUI</span>
+      <span class="pill">macOS 14+ (Sonoma)</span>
+      <span class="pill">MenuBarExtra</span>
+      <span class="pill">Local JSONL parsing</span>
+      <span class="pill">Keychain-stored API key</span>
+      <span class="pill">No telemetry</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. MENU BAR -->
+  <section>
+    <h2><span class="num">01</span>The menu bar item</h2>
+    <p class="section-sub">A single compact status item — just a <b>percentage</b> and a <b>colored dot</b>. The percentage is the 5-hour window (white when low, yellow past 75%, red past 85%). The dot reflects the weekly limit's health. Everything else is one click away.</p>
+
+    <div class="menubar">
+      <div class="mb-item"><span class="apple"></span></div>
+      <div class="mb-item">CC Usage</div>
+      <div class="mb-item dim">File</div>
+      <div class="mb-item dim">Edit</div>
+      <div class="mb-spacer"></div>
+      <div class="mb-meta">9:41</div>
+      <div class="mb-status">
+        <span class="mb-pct">47%</span>
+        <span class="mb-dot y" title="Weekly: 68%"></span>
+      </div>
+    </div>
+
+    <div class="states-grid">
+      <div class="state-card">
+        <div class="label">Healthy</div>
+        <div class="mbbar">
+          <span class="mb-pct">23%</span>
+          <span class="mb-dot g"></span>
+        </div>
+      </div>
+      <div class="state-card">
+        <div class="label">5h winding down</div>
+        <div class="mbbar">
+          <span class="mb-pct warn">78%</span>
+          <span class="mb-dot g"></span>
+        </div>
+      </div>
+      <div class="state-card">
+        <div class="label">Weekly tight</div>
+        <div class="mbbar">
+          <span class="mb-pct danger">94%</span>
+          <span class="mb-dot r"></span>
+        </div>
+      </div>
+      <div class="state-card">
+        <div class="label">Stale / unavailable</div>
+        <div class="mbbar">
+          <span class="mb-pct" style="color: var(--text-faint)">–</span>
+          <span class="mb-dot" style="color: var(--text-faint); background: var(--text-faint); opacity: 0.4"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="mb-dot g"></span> weekly &lt; 60%</div>
+      <div class="legend-item"><span class="mb-dot y"></span> weekly 60–85%</div>
+      <div class="legend-item"><span class="mb-dot r"></span> weekly &gt; 85%</div>
+      <div class="legend-item">· % turns yellow at 75%, red at 85%</div>
+    </div>
+
+    <div class="qbox">
+      <b>Resolved:</b> The menu bar item has no icon — just the percentage and the weekly dot. Cleanest possible bar presence. The "C" gradient square lives only in the dropdown panel header.
+    </div>
+  </section>
+
+  <!-- 2. DROPDOWN -->
+  <section>
+    <h2><span class="num">02</span>The expanded dropdown</h2>
+    <p class="section-sub">Clicking the bar item opens a vibrancy-blurred popover. Both limits get full progress bars + a compact usage sparkline. OpenRouter balance lives below the divider.</p>
+
+    <div class="panel-stage">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <div class="mb-icon">C</div>
+            Claude Code
+          </div>
+          <div class="panel-sub">Updated 14s ago</div>
+        </div>
+
+        <!-- 5-hour -->
+        <div class="panel-row">
+          <div class="row-top">
+            <div class="row-label">5-hour window <span class="tag">PRIMARY</span></div>
+            <div class="row-value">47<span class="unit">%</span></div>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" style="width:47%; background: linear-gradient(90deg, #0a84ff, #5ac8fa);"></div>
+          </div>
+          <div class="progress-meta">
+            <span>2h 21m left</span>
+            <span>resets 14:12</span>
+          </div>
+          <div class="mini-graph">
+            <div class="bar" style="height:30%"></div>
+            <div class="bar" style="height:45%"></div>
+            <div class="bar" style="height:38%"></div>
+            <div class="bar" style="height:62%"></div>
+            <div class="bar" style="height:55%"></div>
+            <div class="bar" style="height:78%"></div>
+            <div class="bar" style="height:71%"></div>
+            <div class="bar" style="height:88%"></div>
+            <div class="bar active" style="height:47%"></div>
+            <div class="bar" style="height:20%; opacity:0.4"></div>
+            <div class="bar" style="height:15%; opacity:0.3"></div>
+            <div class="bar" style="height:10%; opacity:0.2"></div>
+          </div>
+          <div class="graph-axis"><span>−5h</span><span>now</span></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Weekly -->
+        <div class="panel-row">
+          <div class="row-top">
+            <div class="row-label">Weekly limit <span class="tag">7 DAYS</span></div>
+            <div class="row-value">68<span class="unit">%</span></div>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" style="width:68%; background: linear-gradient(90deg, #ffd60a, #ff9f0a);"></div>
+          </div>
+          <div class="progress-meta">
+            <span>32% remaining</span>
+            <span>resets Wed 09:41</span>
+          </div>
+          <div class="mini-graph">
+            <div class="bar" style="height:22%"></div>
+            <div class="bar" style="height:35%"></div>
+            <div class="bar" style="height:40%"></div>
+            <div class="bar" style="height:52%"></div>
+            <div class="bar" style="height:48%"></div>
+            <div class="bar" style="height:60%"></div>
+            <div class="bar active" style="height:68%"></div>
+          </div>
+          <div class="graph-axis"><span>Mon</span><span>Sun</span></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- OpenRouter -->
+        <div class="or-card">
+          <div class="or-top">
+            <div class="or-brand"><div class="logo"></div>OpenRouter balance</div>
+            <div class="or-meta">refresh on click</div>
+          </div>
+          <div class="or-balance">$12.84 <span class="unit">/ $25.00 limit</span></div>
+          <div class="or-spark">
+            <div class="b" style="height:90%"></div>
+            <div class="b" style="height:82%"></div>
+            <div class="b" style="height:78%"></div>
+            <div class="b" style="height:70%"></div>
+            <div class="b" style="height:64%"></div>
+            <div class="b" style="height:58%"></div>
+            <div class="b" style="height:51%"></div>
+            <div class="b" style="height:51%"></div>
+            <div class="b" style="height:51%"></div>
+            <div class="b" style="height:51%"></div>
+            <div class="b" style="height:51%"></div>
+            <div class="b" style="height:51%"></div>
+          </div>
+          <div class="or-meta">Spent $2.16 in last 24h · last refresh 2m ago</div>
+        </div>
+
+        <div class="panel-footer">
+          <span>Auto-refresh 30s · ⌘R to force</span>
+          <span class="refresh">Settings ⌥</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="qbox">
+      <b>Open question:</b> Claude's actual limit thresholds (5h and weekly) are not officially documented as fixed numbers — they vary by plan. The tracker will let you configure your plan's limits in Settings (defaults: Pro). Should I model it on <span class="mono">ccusage</span>'s block/window logic (5h sliding window of tokens, 7-day rolling weekly) for the percentage, or do you want me to mirror a specific limit value (e.g. a fixed token cap)?
+    </div>
+  </section>
+
+  <!-- 3. ARCHITECTURE -->
+  <section>
+    <h2><span class="num">03</span>Architecture</h2>
+    <p class="section-sub">Three small services feed one SwiftUI view. No external dependencies, no backend, no network calls except the optional OpenRouter <span class="mono">/credits</span> fetch.</p>
+
+    <div class="arch-grid">
+      <div class="arch-card">
+        <h3>ClaudeUsageService <span class="badge">CORE</span></h3>
+        <ul>
+          <li>Scans <span class="file">~/.claude/projects/**/*.jsonl</span></li>
+          <li>Parses each line's <span class="file">timestamp</span> + <span class="file">usage.input/output_tokens</span></li>
+          <li>Computes <b>5-hour sliding window</b> token sum + % of cap</li>
+          <li>Computes <b>rolling 7-day</b> token sum + % of cap</li>
+          <li>Buckets per-hour / per-day for the sparklines</li>
+          <li>Re-scans on a 30s timer + FSEvents on file change</li>
+        </ul>
+      </div>
+      <div class="arch-card">
+        <h3>OpenRouterService <span class="badge">OPTIONAL</span></h3>
+        <ul>
+          <li>Key stored in <b>Keychain</b> (account: <span class="file">cc-usage.openrouter</span>)</li>
+          <li>GET <span class="file">https://openrouter.ai/api/v1/credits</span></li>
+          <li>Parses <span class="file">total_credits</span> / <span class="file">total_usage</span></li>
+          <li>Refresh on click + every 5 min while panel open</li>
+          <li>Fails silently if no key configured</li>
+        </ul>
+      </div>
+      <div class="arch-card">
+        <h3>SettingsStore <span class="badge">PERSIST</span></h3>
+        <ul>
+          <li><span class="file">@AppStorage</span> in UserDefaults</li>
+          <li>Plan type → limit presets (Pro / Max / custom)</li>
+          <li>Custom token caps override</li>
+          <li>Refresh interval, notification thresholds</li>
+          <li>Launch-at-login toggle</li>
+        </ul>
+      </div>
+      <div class="arch-card">
+        <h3>MenuBarView <span class="badge">UI</span></h3>
+        <ul>
+          <li><span class="file">MenuBarExtra</span> with <span class="file">.window</span> style for vibrancy</li>
+          <li>Compact label: <span class="file">"\(pct)%"</span> + colored <span class="file">Circle</span></li>
+          <li>Popover: progress bars + <span class="file">Charts</span> framework sparklines</li>
+          <li>Settings sheet for plan + OpenRouter key</li>
+          <li>UserNotifications on threshold cross (opt-in)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. FILE TREE -->
+  <section>
+    <h2><span class="num">04</span>Project layout</h2>
+    <p class="section-sub">Single-target Xcode app. ~8 Swift files, no third-party packages.</p>
+
+    <div class="tree">
+<span class="dir">CCUsageTracker/</span>
+├─ <span class="dir">App/</span>
+│  ├─ <span class="file">CCUsageTrackerApp.swift</span>        <span class="cmt"># @main, MenuBarExtra, scene setup</span>
+│  └─ <span class="file">AppDelegate.swift</span>              <span class="cmt"># launch-at-login, FSEvents wiring</span>
+├─ <span class="dir">Services/</span>
+│  ├─ <span class="file">ClaudeUsageService.swift</span>       <span class="cmt"># JSONL scan, window math</span>
+│  ├─ <span class="file">OpenRouterService.swift</span>        <span class="cmt"># credits fetch, Keychain</span>
+│  ├─ <span class="file">KeychainStore.swift</span>            <span class="cmt"># thin wrapper over SecItem</span>
+│  └─ <span class="file">UsageModels.swift</span>             <span class="cmt"># UsageSnapshot, Window structs</span>
+├─ <span class="dir">Views/</span>
+│  ├─ <span class="file">MenuBarLabelView.swift</span>         <span class="cmt"># the bar item: % + dot</span>
+│  ├─ <span class="file">UsagePanelView.swift</span>           <span class="cmt"># the expanded dropdown</span>
+│  ├─ <span class="file">LimitRowView.swift</span>            <span class="cmt"># reusable progress + sparkline</span>
+│  └─ <span class="file">SettingsView.swift</span>            <span class="cmt"># plan + OR key + thresholds</span>
+├─ <span class="dir">Resources/</span>
+│  └─ <span class="file">Assets.xcassets</span>                <span class="cmt"># app icon, gradient colors</span>
+└─ <span class="file">Info.plist</span>                        <span class="cmt"># LSUIElement = true (menu bar only)</span>
+    </div>
+  </section>
+
+  <!-- 5. PHASES -->
+  <section>
+    <h2><span class="num">05</span>Build roadmap</h2>
+    <p class="section-sub">Four small phases. Each is independently testable in Xcode previews before moving on.</p>
+
+    <div class="phase">
+      <div class="phase-num">1</div>
+      <div>
+        <h3>Skeleton & data layer</h3>
+        <p>Get the menu bar item rendering and Claude's JSONL parsing working end-to-end with hardcoded caps.</p>
+        <div class="tasks">
+          <div class="task">Xcode project, <span class="file">MenuBarExtra</span> with "C" icon + static "—%"</div>
+          <div class="task"><span class="file">ClaudeUsageService</span>: enumerate + parse JSONL</div>
+          <div class="task">5h sliding-window token sum + 7-day rolling sum</div>
+          <div class="task">Wire live % into the bar item</div>
+          <div class="task">Unit test parsing with a fixture JSONL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">2</div>
+      <div>
+        <h3>Dropdown panel</h3>
+        <p>Build the vibrancy popover with both limit rows, progress bars, and sparklines using the Charts framework.</p>
+        <div class="tasks">
+          <div class="task"><span class="file">UsagePanelView</span> + <span class="file">LimitRowView</span></div>
+          <div class="task">Per-hour / per-day bucketing for sparklines</div>
+          <div class="task">Reset-time + time-remaining computation</div>
+          <div class="task">Color logic: green / yellow / red thresholds</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">3</div>
+      <div>
+        <h3>OpenRouter + Settings</h3>
+        <p>Keychain-stored key, credits fetch, settings sheet for plan/key/thresholds.</p>
+        <div class="tasks">
+          <div class="task"><span class="file">KeychainStore</span> wrapper (SecItem CRUD)</div>
+          <div class="task"><span class="file">OpenRouterService</span> + balance card in panel</div>
+          <div class="task"><span class="file">SettingsView</span> with plan presets + custom caps</div>
+          <div class="task">Graceful failure when no key / offline</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">4</div>
+      <div>
+        <h3>Polish & ship</h3>
+        <p>FSEvents live updates, notifications, launch-at-login, app icon, notarization.</p>
+        <div class="tasks">
+          <div class="task">FSEvents on <span class="file">~/.claude/projects</span> for instant refresh</div>
+          <div class="task">UserNotifications at 80% / 95% thresholds (opt-in)</div>
+          <div class="task">Launch at login (<span class="file">SMAppService</span>)</div>
+          <div class="task">App icon + accent gradient asset</div>
+          <div class="task">Notarize + export as unsigned .app for local use</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span>Decisions confirmed</h2>
+    <div class="arch-grid">
+      <div class="arch-card">
+        <h3>From your answers</h3>
+        <ul>
+          <li>Stack: <b>Swift / SwiftUI</b>, menu bar via <span class="file">MenuBarExtra</span></li>
+          <li>Claude data: parse local <span class="file">~/.claude/projects</span> JSONL</li>
+          <li>OpenRouter: user key in <b>Keychain</b>, fetch <span class="file">/credits</span></li>
+          <li>Aesthetic: <b>macOS native</b> — Liquid Glass, vibrancy, SF Symbols</li>
+          <li>Bar shows <b>5-hour %</b> + weekly <b>colored dot</b>; click expands both + graphs</li>
+        </ul>
+      </div>
+      <div class="arch-card">
+        <h3>What I still need from you</h3>
+        <ul>
+          <li>Bar item: no icon — just colored % + weekly dot (see §01)</li>
+          <li>Percentage model: <span class="mono">ccusage</span>-style sliding window vs. fixed token cap (see §02 question)</li>
+          <li>Your Claude plan (Pro / Max) so I can preset sensible caps</li>
+          <li>Whether you want notifications at thresholds, or purely visual</li>
+          <li>OK to target macOS 14+ (Sonoma) minimum? Required for <span class="file">MenuBarExtra</span> + Charts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
