@@ -90,7 +90,7 @@ CC Usage Tracker does **not** parse JSONL logs itself. Instead it relies on a sm
 4. The menu-bar app watches `state.json` and refreshes the label + popover.
 
 > [!NOTE]
-> The bridge only writes `state.json` when a payload actually carries `rate_limits`. Payloads without them (idle / pre-first-response / API-plan sessions) are passed through untouched, so a quiet session can't clobber the active session's real value across the shared file.
+> The bridge only writes `state.json` when a payload actually carries `rate_limits`. Payloads without them (idle / pre-first-response / API-plan sessions) are passed through untouched. When multiple Claude Code sessions are active simultaneously, the bridge keeps the **higher** percentage for each window (matched by `resets_at`), so a quieter session can never drag the displayed value down.
 
 The `used_percentage` values are pre-calculated by Anthropic and forwarded as-is; CC Usage Tracker does not estimate token caps.
 

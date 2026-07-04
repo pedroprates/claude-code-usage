@@ -173,24 +173,43 @@ SESSION=$(echo "$INPUT"  | jq -r '.session_id // empty'                    2>/de
 
 # Only persist when this payload carries rate_limits; otherwise leave the last
 # known-good state.json untouched. Multiple Claude Code sessions share this
-# file, and a payload without rate_limits (idle / pre-first-response / API plan)
-# would clobber the active session's real value.
+# file; for the same reset window take the higher percentage so a slower
+# session never clobbers the busier one's value.
 if [ -n "$FIVE_PCT" ] || [ -n "$WEEK_PCT" ]; then
-    # Atomic write via temp + rename.
     TMP="$STATE_FILE.tmp"
+    # Read existing values to compare windows and keep the higher usage.
+    CUR_F5P=""; CUR_F5R=""; CUR_WP=""; CUR_WR=""
+    if [ -f "$STATE_FILE" ]; then
+        CUR_F5P=$(jq -r '.five_hour.used_percentage // empty' "$STATE_FILE" 2>/dev/null || true)
+        CUR_F5R=$(jq -r '.five_hour.resets_at       // empty' "$STATE_FILE" 2>/dev/null || true)
+        CUR_WP=$(jq  -r '.seven_day.used_percentage // empty' "$STATE_FILE" 2>/dev/null || true)
+        CUR_WR=$(jq  -r '.seven_day.resets_at       // empty' "$STATE_FILE" 2>/dev/null || true)
+    fi
+    # For each window: if resets_at matches, keep the higher percentage; if the
+    # incoming resets_at is newer (or we have no current value), take incoming.
     jq -n \
       --arg now "$(date +%s)" \
       --arg f5p "$FIVE_PCT" --arg f5r "$FIVE_RST" \
       --arg wp  "$WEEK_PCT" --arg wr  "$WEEK_RST" \
       --arg m "$MODEL" --arg s "$SESSION" \
-      '{
+      --arg cf5p "$CUR_F5P" --arg cf5r "$CUR_F5R" \
+      --arg cwp  "$CUR_WP"  --arg cwr  "$CUR_WR" \
+      '
+      def best_pct(new_p; new_r; cur_p; cur_r):
+        if (new_p|tonumber?) == null then null
+        elif (cur_p|tonumber?) == null then (new_p|tonumber)
+        elif new_r == cur_r then [(new_p|tonumber), (cur_p|tonumber)] | max
+        elif (new_r|tonumber? // 0) > (cur_r|tonumber? // 0) then (new_p|tonumber)
+        else (cur_p|tonumber)
+        end;
+      {
         updated_at: ($now|tonumber),
         model: $m,
         session_id: $s,
-        five_hour: { used_percentage: ($f5p|tonumber?) // null,
+        five_hour: { used_percentage: best_pct($f5p; $f5r; $cf5p; $cf5r),
                      resets_at:       ($f5r|tonumber?) // null },
-        seven_day: { used_percentage: ($wp |tonumber?) // null,
-                     resets_at:       ($wr |tonumber?) // null }
+        seven_day: { used_percentage: best_pct($wp; $wr; $cwp; $cwr),
+                     resets_at:       ($wr|tonumber?) // null }
       }' > "$TMP" 2>/dev/null && mv "$TMP" "$STATE_FILE" || rm -f "$TMP"
 fi
 
