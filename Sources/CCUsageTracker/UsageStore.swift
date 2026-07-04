@@ -59,7 +59,7 @@ final class UsageStore: ObservableObject {
 
     private func beginWatching() {
         // Ensure the directory exists so we can watch its parent for creation.
-        let dir = service.stateURL.deletingLastPathComponent()
+        let dir = service.sessionsDirURL
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         // FSEvents on the state file itself.
@@ -77,7 +77,7 @@ final class UsageStore: ObservableObject {
 
         // Watch the directory: state.json is written via temp+rename, so the
         // file descriptor on the file itself would be invalidated on each write.
-        let dir = service.stateURL.deletingLastPathComponent()
+        let dir = service.sessionsDirURL
         let fd = open(dir.path, O_EVTONLY)
         guard fd >= 0 else { return }
 
