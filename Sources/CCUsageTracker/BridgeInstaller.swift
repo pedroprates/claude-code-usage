@@ -31,6 +31,16 @@ final class BridgeInstaller {
         FileManager.default.fileExists(atPath: Self.bridgePath)
     }
 
+    /// True when the active `statusLine.command` in ~/.claude/settings.json
+    /// routes through this bridge. The investigation found the app's
+    /// `isInstalled` checked only file existence, so a status-line change that
+    /// pointed the command elsewhere left the app silently bypassed.
+    var isActivated: Bool {
+        guard let settings = Self.readSettingsJSON() else { return false }
+        let cmd = (settings["statusLine"] as? [String: Any])?["command"] as? String
+        return cmd?.contains(Self.bridgePath) == true
+    }
+
     var bridgeCommand: String {
         "bash \(Self.bridgePath)"
     }

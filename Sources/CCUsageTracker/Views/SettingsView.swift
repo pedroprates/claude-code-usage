@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var apiKeyInput: String = ""
     @State private var savedKey: Bool = false
     @State private var bridgeInstalled: Bool = false
+    @State private var bridgeActivated: Bool = false
     @State private var bridgeBusy: Bool = false
     @State private var bridgeError: String?
 
@@ -18,7 +19,9 @@ struct SettingsView: View {
                     Image(systemName: bridgeInstalled ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                         .foregroundStyle(bridgeInstalled ? .green : .yellow)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(bridgeInstalled ? "Installed" : "Not installed")
+                        Text(bridgeInstalled
+                             ? (bridgeActivated ? "Installed" : "Installed (bypassed)")
+                             : "Not installed")
                             .font(.system(size: 12, weight: .semibold))
                         Text(bridgeInstalled
                              ? "Live usage data flows from Claude Code."
@@ -118,6 +121,7 @@ struct SettingsView: View {
         }
         .onAppear {
             bridgeInstalled = BridgeInstaller.shared.isInstalled
+            bridgeActivated = BridgeInstaller.shared.isActivated
         }
     }
 
@@ -132,6 +136,7 @@ struct SettingsView: View {
                     try BridgeInstaller.shared.install()
                 }
                 bridgeInstalled = BridgeInstaller.shared.isInstalled
+                bridgeActivated = BridgeInstaller.shared.isActivated
             } catch {
                 bridgeError = error.localizedDescription
             }

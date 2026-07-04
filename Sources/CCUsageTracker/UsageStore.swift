@@ -14,6 +14,7 @@ final class UsageStore: ObservableObject {
 
     @Published private(set) var snapshot: UsageSnapshot?
     @Published private(set) var bridgeInstalled: Bool = false
+    @Published private(set) var bridgeActivated: Bool = false
 
     private let service: ClaudeUsageService
     private let settings: SettingsStore
@@ -49,9 +50,10 @@ final class UsageStore: ObservableObject {
     func refresh() {
         snapshot = service.readSnapshot()
         bridgeInstalled = BridgeInstaller.shared.isInstalled
+        bridgeActivated = BridgeInstaller.shared.isActivated
 
         // Debug: write diagnostic to /tmp so we can verify the app is reading sessions
-        let debug = "refresh at \(Date()) — snapshot: \(snapshot != nil) — fiveHour: \(snapshot?.fiveHour.usedPercentage ?? -1) — bridge: \(bridgeInstalled)"
+        let debug = "refresh at \(Date()) — snapshot: \(snapshot != nil) — fiveHour: \(snapshot?.fiveHour.usedPercentage ?? -1) — bridge: \(bridgeInstalled)/\(bridgeActivated)"
         try? debug.write(toFile: "/tmp/cc-usage-debug.log", atomically: true, encoding: .utf8)
     }
 
