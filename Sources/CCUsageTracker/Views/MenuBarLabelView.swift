@@ -1,4 +1,5 @@
 import SwiftUI
+import CCUsageCore
 
 /// The compact item shown in the macOS menu bar:
 /// gradient "C" icon · 5-hour percentage · weekly-status dot.

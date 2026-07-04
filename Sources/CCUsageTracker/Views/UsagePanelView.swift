@@ -1,4 +1,5 @@
 import SwiftUI
+import CCUsageCore
 
 /// The expanded popover shown when the menu bar item is clicked.
 struct UsagePanelView: View {
@@ -46,6 +47,8 @@ struct UsagePanelView: View {
                     staleBanner
                         .padding(.bottom, 14)
                 }
+            } else if store.bridgeInstalled, !store.bridgeActivated {
+                bridgeBypassed
             } else if store.bridgeInstalled {
                 waitingForSession
             } else {
@@ -138,6 +141,22 @@ struct UsagePanelView: View {
         let ago = Int(-updated.timeIntervalSinceNow.rounded())
         if ago < 3600 { return "\(ago / 60)m" }
         return "\(ago / 3600)h"
+    }
+
+    private var bridgeBypassed: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+                Text("Bridge bypassed")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            Text("Status line isn't routing through the collector. Check Settings.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
     }
 
     private var waitingForSession: some View {

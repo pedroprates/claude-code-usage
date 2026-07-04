@@ -1,67 +1,57 @@
 import Foundation
+import CCUsageCore
 
-/// Reads the canonical usage state from `~/.claude/cc-usage-tracker/state.json`,
-/// written by the statusline bridge. No JSONL parsing, no token math — the
-/// percentages are pre-calculated by Claude Code and handed to us verbatim.
+/// Reads usage state by scanning `~/.claude/cc-usage-tracker/sessions/`,
+/// where each Claude Code session writes its own snapshot file. Aggregates
+/// per-session snapshots into one account-level snapshot (max percentage per
+/// reset window). No JSONL parsing, no token math — the percentages are
+/// pre-calculated by Claude Code and handed to us verbatim.
 final class ClaudeUsageService {
     static let stateDirName = "cc-usage-tracker"
-    static let stateFileName = "state.json"
+    static let sessionsDirName = "sessions"
 
-    let stateURL: URL
+    let sessionsDirURL: URL
 
-    init(stateURL: URL? = nil) {
-        if let stateURL {
-            self.stateURL = stateURL
+    init(sessionsDirURL: URL? = nil) {
+        if let sessionsDirURL {
+            self.sessionsDirURL = sessionsDirURL
         } else {
-            self.stateURL = FileManager.default
+            self.sessionsDirURL = FileManager.default
                 .homeDirectoryForCurrentUser
-                .appendingPathComponent(".claude/\(Self.stateDirName)/\(Self.stateFileName)")
+                .appendingPathComponent(".claude/\(Self.stateDirName)/\(Self.sessionsDirName)")
         }
     }
 
     var stateExists: Bool {
-        FileManager.default.fileExists(atPath: stateURL.path)
+        let s = (try? FileManager.default.contentsOfDirectory(
+            at: sessionsDirURL, includingPropertiesForKeys: nil)) ?? []
+        return s.contains { $0.pathExtension == "json" }
     }
 
-    /// Reads and decodes the current snapshot. Returns nil if the file is
-    /// missing or unreadable.
+    /// Scans session files, decodes each, and aggregates. Returns nil when no
+    /// session file carries any rate-limit window.
     func readSnapshot() -> UsageSnapshot? {
-        guard let data = try? Data(contentsOf: stateURL) else { return nil }
-        return decode(data: data)
+        let urls = (try? FileManager.default.contentsOfDirectory(
+            at: sessionsDirURL, includingPropertiesForKeys: nil)) ?? []
+        let snapshots: [SessionSnapshot] = urls.filter { $0.pathExtension == "json" }.compactMap { url in
+            guard let data = try? Data(contentsOf: url),
+                  let s = try? JSONDecoder().decode(SessionSnapshot.self, from: data)
+            else { return nil }
+            return s
+        }
+        pruneStale(urls: urls)
+        return ClaudeUsageCore.aggregate(snapshots: snapshots)
     }
 
-    private func decode(data: Data) -> UsageSnapshot? {
-        struct Raw: Decodable {
-            let updated_at: Double
-            let model: String?
-            let session_id: String?
-            let five_hour: Window?
-            let seven_day: Window?
+    // ponytail: bounded cleanup — drop session files older than 7 days so the
+    // directory can't grow without limit. Upgrade: per-session TTL if needed.
+    private func pruneStale(urls: [URL]) {
+        let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
+        for url in urls where url.pathExtension == "json" {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let mtime = attrs[.modificationDate] as? Date, mtime < cutoff {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
-        struct Window: Decodable {
-            let used_percentage: Double?
-            let resets_at: Double?
-        }
-        guard let raw = try? JSONDecoder().decode(Raw.self, from: data) else { return nil }
-
-        let five = RateLimit(
-            usedPercentage: raw.five_hour?.used_percentage,
-            resetsAt: raw.five_hour?.resets_at.map { Date(timeIntervalSince1970: $0) }
-        )
-        let seven = RateLimit(
-            usedPercentage: raw.seven_day?.used_percentage,
-            resetsAt: raw.seven_day?.resets_at.map { Date(timeIntervalSince1970: $0) }
-        )
-        return UsageSnapshot(
-            fiveHour: five,
-            sevenDay: seven,
-            updatedAt: Date(timeIntervalSince1970: raw.updated_at),
-            model: raw.model?.nilIfEmpty,
-            sessionId: raw.session_id?.nilIfEmpty
-        )
     }
-}
-
-private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
