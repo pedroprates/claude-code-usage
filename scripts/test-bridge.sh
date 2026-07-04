@@ -26,7 +26,7 @@ emit() {  # session_id five_pct five_rst week_pct week_rst
                    seven_day:{used_percentage:$wp,resets_at:$wr}}}'
 }
 
-rm -f "$SESSIONS_DIR"/*.json 2>/dev/null || true
+rm -f "$SESSIONS_DIR"/A.json "$SESSIONS_DIR"/B.json "$SESSIONS_DIR"/C.json "$SESSIONS_DIR"/concurrent-*.json 2>/dev/null || true
 
 emit A 30 1000 21 2000 | bash "$BRIDGE" >/dev/null
 emit B 70 1000 23 2000 | bash "$BRIDGE" >/dev/null
