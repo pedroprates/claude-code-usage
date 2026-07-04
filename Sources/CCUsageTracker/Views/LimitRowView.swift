@@ -1,4 +1,5 @@
 import SwiftUI
+import CCUsageCore
 
 /// Reusable row: label · percentage · progress bar · reset time.
 struct LimitRowView: View {

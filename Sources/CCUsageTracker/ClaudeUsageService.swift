@@ -1,4 +1,5 @@
 import Foundation
+import CCUsageCore
 
 /// Reads the canonical usage state from `~/.claude/cc-usage-tracker/state.json`,
 /// written by the statusline bridge. No JSONL parsing, no token math — the

@@ -1,4 +1,5 @@
 import SwiftUI
+import CCUsageCore
 
 @main
 struct CCUsageTrackerApp: App {

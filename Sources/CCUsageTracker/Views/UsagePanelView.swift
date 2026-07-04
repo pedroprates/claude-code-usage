@@ -1,4 +1,5 @@
 import SwiftUI
+import CCUsageCore
 
 /// The expanded popover shown when the menu bar item is clicked.
 struct UsagePanelView: View {
