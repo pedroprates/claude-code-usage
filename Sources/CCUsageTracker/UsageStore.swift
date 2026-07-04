@@ -50,7 +50,7 @@ final class UsageStore: ObservableObject {
         snapshot = service.readSnapshot()
         bridgeInstalled = BridgeInstaller.shared.isInstalled
 
-        // Debug: write diagnostic to /tmp so we can verify the app is reading state.json
+        // Debug: write diagnostic to /tmp so we can verify the app is reading sessions
         let debug = "refresh at \(Date()) — snapshot: \(snapshot != nil) — fiveHour: \(snapshot?.fiveHour.usedPercentage ?? -1) — bridge: \(bridgeInstalled)"
         try? debug.write(toFile: "/tmp/cc-usage-debug.log", atomically: true, encoding: .utf8)
     }
@@ -58,15 +58,9 @@ final class UsageStore: ObservableObject {
     // MARK: - File watching
 
     private func beginWatching() {
-        // Ensure the directory exists so we can watch its parent for creation.
-        let dir = service.sessionsDirURL
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        // FSEvents on the state file itself.
+        try? FileManager.default.createDirectory(
+            at: service.sessionsDirURL, withIntermediateDirectories: true)
         startFileWatch()
-
-        // Polling fallback in case FSEvents misses an event (NFS, etc.) or the
-        // file is replaced atomically (mv) in a way the source doesn't surface.
         pollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -74,24 +68,16 @@ final class UsageStore: ObservableObject {
 
     private func startFileWatch() {
         fileSource?.cancel()
-
-        // Watch the directory: state.json is written via temp+rename, so the
-        // file descriptor on the file itself would be invalidated on each write.
         let dir = service.sessionsDirURL
         let fd = open(dir.path, O_EVTONLY)
         guard fd >= 0 else { return }
-
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .delete, .rename],
             queue: .main
         )
-        src.setEventHandler { [weak self] in
-            self?.refresh()
-        }
-        src.setCancelHandler {
-            close(fd)
-        }
+        src.setEventHandler { [weak self] in self?.refresh() }
+        src.setCancelHandler { close(fd) }
         src.resume()
         fileSource = src
     }
