@@ -15,11 +15,15 @@ final class UsageStore: ObservableObject {
     @Published private(set) var snapshot: UsageSnapshot?
     @Published private(set) var bridgeInstalled: Bool = false
     @Published private(set) var bridgeActivated: Bool = false
+    @Published private(set) var isReactivating: Bool = false
 
     private let service: ClaudeUsageService
     private let settings: SettingsStore
     private var fileSource: DispatchSourceFileSystemObject?
     private var pollTimer: Timer?
+    /// Guards `reactivate()` to once per app launch — it rewrites
+    /// ~/.claude/settings.json, so we don't want a tight loop.
+    private var hasReactivatedThisSession = false
 
     /// A snapshot is stale if no Claude Code session has written state.json in
     /// the last 5 minutes.
@@ -35,6 +39,10 @@ final class UsageStore: ObservableObject {
     }
 
     func start() {
+        // Recover a valid previous statusline command before the bridge runs
+        // again — earlier builds / the test self-check could leave it as a
+        // no-op (`true`) that blanks CC's status line.
+        BridgeInstaller.shared.recoverPrevCommandIfNeeded()
         refresh()
         beginWatching()
     }
@@ -55,6 +63,27 @@ final class UsageStore: ObservableObject {
         // Debug: write diagnostic to /tmp so we can verify the app is reading sessions
         let debug = "refresh at \(Date()) — snapshot: \(snapshot != nil) — fiveHour: \(snapshot?.fiveHour.usedPercentage ?? -1) — bridge: \(bridgeInstalled)/\(bridgeActivated)"
         try? debug.write(toFile: "/tmp/cc-usage-debug.log", atomically: true, encoding: .utf8)
+
+        // If the bridge is active but no live data is flowing (snapshot stale
+        // or missing), nudge Claude Code to re-read settings.json so a running
+        // session picks up the bridge. Throttled to once per app launch.
+        if bridgeActivated, isStale, !hasReactivatedThisSession {
+            hasReactivatedThisSession = true
+            Task { await reactivateBridge() }
+        }
+    }
+
+    private func reactivateBridge() async {
+        isReactivating = true
+        do {
+            try await BridgeInstaller.shared.reactivate()
+            // Give the running CC session a moment to write a fresh payload.
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            refresh()
+        } catch {
+            hasReactivatedThisSession = false
+        }
+        isReactivating = false
     }
 
     // MARK: - File watching

@@ -19,11 +19,25 @@ final class BridgeInstaller {
         .appendingPathComponent(".claude/settings.json").path
 
     /// UserDefaults key for the previous statusLine.command value (for restore).
-    private let backupKey = "bridge.previousStatusLineCommand"
+    private static let backupKey = "bridge.previousStatusLineCommand"
+
+    /// Older builds shipped under the bundle id `CCUsageTracker`; that domain
+    /// may still hold the only uncorrupted copy of the previous statusline
+    /// command. Used by `recoverPrevCommandIfNeeded`.
+    private static let strandedDefaultsDomain = "CCUsageTracker"
+
+    /// Commands that produce no statusline output. The bridge must never chain
+    /// to one of these — it would blank out Claude Code's status line.
+    private static let noOpCommands: Set<String> = ["", "true", ":"]
 
     /// File the bridge reads at runtime to know what to chain to.
     static let prevCommandPath = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".claude/cc-usage-tracker/prev-command.txt").path
+
+    /// Conventional statusline script the bridge chains to when no previous
+    /// command is recorded. Probed by `recoverPrevCommandIfNeeded`.
+    private static let defaultStatuslinePath = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".claude/statusline.sh").path
 
     // MARK: - State
 
@@ -61,6 +75,79 @@ final class BridgeInstaller {
         }
     }
 
+    /// Returns the trimmed previous command, or nil when it is empty, a known
+    /// no-op (`true`, `:`), or points at this bridge (which would recurse).
+    /// Chaining to any of those would blank out Claude Code's status line.
+    private func sanitizePrevCommand(_ cmd: String?) -> String? {
+        let trimmed = cmd?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty,
+              !Self.noOpCommands.contains(trimmed),
+              !trimmed.contains("cc-usage-bridge")
+        else { return nil }
+        return trimmed
+    }
+
+    /// Persists the previous statusline command to both the runtime file the
+    /// bridge chains to and the UserDefaults backup used by `uninstall`.
+    private func persistPrevCommand(_ cmd: String) {
+        try? FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: Self.prevCommandPath).deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        try? cmd.write(toFile: Self.prevCommandPath, atomically: true, encoding: .utf8)
+        UserDefaults.standard.set(cmd, forKey: Self.backupKey)
+    }
+
+    /// One-time recovery of the user's real previous statusline command.
+    ///
+    /// Earlier builds (or the `test-bridge.sh` self-check) could leave
+    /// `prev-command.txt` / the backup key set to a no-op like `true`, which
+    /// blanks CC's status line. If we have no valid prev command on record,
+    /// probe the older `CCUsageTracker` defaults domain (stranded when the
+    /// bundle id changed) and then the conventional `~/.claude/statusline.sh`.
+    func recoverPrevCommandIfNeeded() {
+        let current = UserDefaults.standard.string(forKey: Self.backupKey)
+            ?? (try? String(contentsOfFile: Self.prevCommandPath, encoding: .utf8))
+        if sanitizePrevCommand(current) != nil { return }
+
+        if let stranded = UserDefaults(suiteName: Self.strandedDefaultsDomain)?
+            .string(forKey: Self.backupKey),
+           let valid = sanitizePrevCommand(stranded) {
+            persistPrevCommand(valid)
+            return
+        }
+
+        if FileManager.default.isExecutableFile(atPath: Self.defaultStatuslinePath) {
+            persistPrevCommand("bash \(Self.defaultStatuslinePath)")
+        }
+    }
+
+    /// Rewrites `~/.claude/settings.json`'s `statusLine.command` off then back
+    /// on so a Claude Code session that was already running when the bridge
+    /// activated picks it up and starts emitting payloads. Without this, a
+    /// running session keeps whatever statusLine it had at startup and the menu
+    /// bar never receives fresh data. Async sleep keeps the main actor free.
+    func reactivate() async throws {
+        guard let settings = Self.readSettingsJSON() else { throw InstallError.settingsUnreadable }
+        let prev = sanitizePrevCommand(
+            UserDefaults.standard.string(forKey: Self.backupKey)
+            ?? (try? String(contentsOfFile: Self.prevCommandPath, encoding: .utf8)))
+
+        var off = settings
+        if let prev {
+            off["statusLine"] = ["type": "command", "command": prev]
+        } else {
+            off["statusLine"] = nil
+        }
+        try Self.writeSettingsJSON(off)
+
+        // Brief pause so Claude Code observes the non-bridge state and re-reads.
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        var on = off
+        on["statusLine"] = ["type": "command", "command": bridgeCommand]
+        try Self.writeSettingsJSON(on)
+    }
+
     /// Writes the bridge script, patches `~/.claude/settings.json`'s
     /// `statusLine.command` to invoke it, and backs up the previous value.
     func install() throws {
@@ -71,16 +158,17 @@ final class BridgeInstaller {
         guard let settings = Self.readSettingsJSON() else { throw InstallError.settingsUnreadable }
 
         var mutable = settings
-        let prevCommand = (mutable["statusLine"] as? [String: Any])?["command"] as? String
-        if let prevCommand, prevCommand != bridgeCommand {
-            UserDefaults.standard.set(prevCommand, forKey: backupKey)
+        let prevCommand = sanitizePrevCommand(
+            (mutable["statusLine"] as? [String: Any])?["command"] as? String)
+        if let prevCommand {
+            UserDefaults.standard.set(prevCommand, forKey: Self.backupKey)
         }
 
         // Persist the previous command for the bridge to chain to at runtime.
+        // Empty string (no prev) is fine — the bridge skips the chain step.
         try? FileManager.default.createDirectory(
             at: URL(fileURLWithPath: Self.prevCommandPath).deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
+            withIntermediateDirectories: true)
         try (prevCommand ?? "").write(toFile: Self.prevCommandPath, atomically: true, encoding: .utf8)
 
         mutable["statusLine"] = [
@@ -95,10 +183,10 @@ final class BridgeInstaller {
     func uninstall() throws {
         if let settings = Self.readSettingsJSON() {
             var mutable = settings
-            let prev = UserDefaults.standard.string(forKey: backupKey)
-                ?? (try? String(contentsOfFile: Self.prevCommandPath, encoding: .utf8))
-                ?? ""
-            if !prev.isEmpty {
+            let prev = sanitizePrevCommand(
+                UserDefaults.standard.string(forKey: Self.backupKey)
+                ?? (try? String(contentsOfFile: Self.prevCommandPath, encoding: .utf8)))
+            if let prev {
                 mutable["statusLine"] = [
                     "type": "command",
                     "command": prev
@@ -110,7 +198,7 @@ final class BridgeInstaller {
         }
         try? FileManager.default.removeItem(atPath: Self.bridgePath)
         try? FileManager.default.removeItem(atPath: Self.prevCommandPath)
-        UserDefaults.standard.removeObject(forKey: backupKey)
+        UserDefaults.standard.removeObject(forKey: Self.backupKey)
     }
 
     // MARK: - Bridge script

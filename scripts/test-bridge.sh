@@ -2,18 +2,29 @@
 # Self-check for the installed statusline bridge.
 # Feeds three fake Claude Code payloads (different session_ids, same reset
 # window, ascending percentages) and asserts each session gets its own file
-# with the right values. Run after `build-app.sh` + opening the app (which
-# installs the bridge to ~/.claude/cc-usage-bridge.sh).
+# with the right values. Runs entirely under a throwaway HOME so it never
+# touches the user's real ~/.claude state. Run after `build-app.sh` + opening
+# the app (which installs the bridge to ~/.claude/cc-usage-bridge.sh).
 set -euo pipefail
 
-BRIDGE="${HOME}/.claude/cc-usage-bridge.sh"
-SESSIONS_DIR="${HOME}/.claude/cc-usage-tracker/sessions"
-PREV_FILE="${HOME}/.claude/cc-usage-tracker/prev-command.txt"
+REAL_HOME="$(dscl . -read "/Users/$(whoami)" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
+[ -n "$REAL_HOME" ] || REAL_HOME="$HOME"
+REAL_BRIDGE="$REAL_HOME/.claude/cc-usage-bridge.sh"
 
-[ -f "$BRIDGE" ] || { echo "FAIL: bridge not installed at $BRIDGE"; exit 1; }
+[ -f "$REAL_BRIDGE" ] || { echo "FAIL: bridge not installed at $REAL_BRIDGE"; exit 1; }
+
+TMP_HOME="$(mktemp -d)"
+trap 'rm -rf "$TMP_HOME"' EXIT
+export HOME="$TMP_HOME"
+
+SESSIONS_DIR="$TMP_HOME/.claude/cc-usage-tracker/sessions"
+PREV_FILE="$TMP_HOME/.claude/cc-usage-tracker/prev-command.txt"
+BRIDGE="$TMP_HOME/.claude/cc-usage-bridge.sh"
+mkdir -p "$SESSIONS_DIR"
+cp "$REAL_BRIDGE" "$BRIDGE"
+chmod +x "$BRIDGE"
 
 # Chain to a no-op so the test doesn't depend on a real renderer.
-mkdir -p "$(dirname "$PREV_FILE")"
 echo 'true' > "$PREV_FILE"
 
 emit() {  # session_id five_pct five_rst week_pct week_rst
@@ -25,8 +36,6 @@ emit() {  # session_id five_pct five_rst week_pct week_rst
       rate_limits:{five_hour:{used_percentage:$f5p,resets_at:$f5r},
                    seven_day:{used_percentage:$wp,resets_at:$wr}}}'
 }
-
-rm -f "$SESSIONS_DIR"/A.json "$SESSIONS_DIR"/B.json "$SESSIONS_DIR"/C.json "$SESSIONS_DIR"/concurrent-*.json 2>/dev/null || true
 
 emit A 30 1000 21 2000 | bash "$BRIDGE" >/dev/null
 emit B 70 1000 23 2000 | bash "$BRIDGE" >/dev/null
