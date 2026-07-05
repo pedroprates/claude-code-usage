@@ -49,6 +49,8 @@ struct UsagePanelView: View {
                 }
             } else if store.bridgeInstalled, !store.bridgeActivated {
                 bridgeBypassed
+            } else if store.isReactivating {
+                reactivatingBridge
             } else if store.bridgeInstalled {
                 waitingForSession
             } else {
@@ -157,6 +159,22 @@ struct UsagePanelView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
+    }
+
+    private var reactivatingBridge: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Re-activating bridge…")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            Text("Nudging Claude Code to pick up the bridge for a running session.")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 16)
     }
 
     private var waitingForSession: some View {
